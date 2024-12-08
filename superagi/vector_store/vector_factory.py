@@ -1,7 +1,6 @@
-import pinecone
-from pinecone import UnauthorizedException
+from pinecone import Pinecone, UnauthorizedException
 
-from superagi.vector_store.pinecone import Pinecone
+from superagi.vector_store.pinecone import PineconeVectorStore
 from superagi.vector_store import weaviate
 from superagi.config.config import get_config
 from superagi.lib.logger import logger
@@ -35,21 +34,21 @@ class VectorFactory:
                 env = get_config("PINECONE_ENVIRONMENT")
                 if api_key is None or env is None:
                     raise ValueError("PineCone API key not found")
-                pinecone.init(api_key=api_key, environment=env)
+                pc = Pinecone(api_key=api_key)
 
-                if index_name not in pinecone.list_indexes():
+                if index_name not in pc.list_indexes():
                     sample_embedding = embedding_model.get_embedding("sample")
                     if "error" in sample_embedding:
                         logger.error(f"Error in embedding model {sample_embedding}")
 
                     # if does not exist, create index
-                    pinecone.create_index(
+                    pc.create_index(
                         index_name,
                         dimension=len(sample_embedding),
                         metric='dotproduct'
                     )
-                index = pinecone.Index(index_name)
-                return Pinecone(index, embedding_model, 'text')
+                index = pc.Index(index_name)
+                return PineconeVectorStore(index, embedding_model, 'text')
             except UnauthorizedException:
                 raise ValueError("PineCone API key not found")
 
@@ -89,9 +88,9 @@ class VectorFactory:
         
         if vector_store == VectorStoreType.PINECONE:
             try:
-                pinecone.init(api_key = creds["api_key"], environment = creds["environment"])
-                index = pinecone.Index(index_name)
-                return Pinecone(index, embedding_model)
+                pc = Pinecone(api_key = creds["api_key"])
+                index = pc.Index(index_name)
+                return PineconeVectorStore(index, embedding_model)
             except UnauthorizedException:
                 raise ValueError("PineCone API key not found")
         
